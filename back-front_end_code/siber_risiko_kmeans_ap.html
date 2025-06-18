@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Segmentasi Risiko Keamanan Siber</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0f1f; /* Deep dark blue */
+            color: #e0e0e0; /* Light gray for text */
+        }
+        .cyber-theme {
+            background-color: #10182c; /* Darker blue-gray */
+            border: 1px solid #00ffff; /* Cyan border */
+            box-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff inset;
+        }
+        .cyber-header {
+            font-family: 'Orbitron', sans-serif;
+            color: #00ffff; /* Cyan */
+            text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
+        }
+        .cyber-button {
+            background-color: #00ffff; /* Cyan */
+            color: #0a0f1f; /* Deep dark blue text */
+            border: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 5px #00ffff;
+        }
+        .cyber-button:hover {
+            background-color: #00cccc;
+            box-shadow: 0 0 10px #00ffff, 0 0 15px #00ffff;
+            transform: translateY(-2px);
+        }
+        .cyber-input, .cyber-select {
+            background-color: #1c2a48; /* Darker input background */
+            border: 1px solid #00aaff; /* Lighter blue border */
+            color: #e0e0e0;
+            border-radius: 0.375rem; /* rounded-md */
+        }
+        .cyber-input:focus, .cyber-select:focus {
+            outline: none;
+            border-color: #00ffff; /* Cyan focus border */
+            box-shadow: 0 0 5px #00ffff;
+        }
+        .tab-button {
+            background-color: #1c2a48;
+            color: #00aaff;
+            border: 1px solid #00aaff;
+        }
+        .tab-button.active {
+            background-color: #00ffff;
+            color: #0a0f1f;
+            border-color: #00ffff;
+            box-shadow: 0 0 5px #00ffff;
+        }
+        .cyber-card {
+            background-color: rgba(16, 24, 44, 0.8); /* Slightly transparent dark blue-gray */
+            backdrop-filter: blur(5px);
+            border: 1px solid #0077cc; /* Medium blue border */
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+        }
+        /* Custom scrollbar for webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #10182c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00ffff;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00cccc;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 170, 255, 0.3);
+            border-left-color: #00ffff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 selection:bg-cyan-500 selection:text-black">
+
+    <div class="cyber-theme w-full max-w-4xl p-6 md:p-8 rounded-lg">
+        <header class="text-center mb-8">
+            <h1 class="cyber-header text-3xl md:text-4xl font-bold">Segmentasi Risiko Keamanan Cyber</h1>
+            <p class="text-sm text-cyan-300 mt-1">Analisis Aktivitas Login dengan K-Means Clustering</p>
+        </header>
+
+        <div class="mb-6">
+            <div class="flex justify-center space-x-2 md:space-x-4 mb-4">
+                <button id="tab-manual" class="tab-button active py-2 px-4 rounded-md text-sm md:text-base font-semibold">Input Manual</button>
+                <button id="tab-csv" class="tab-button py-2 px-4 rounded-md text-sm md:text-base font-semibold">Upload CSV</button>
+            </div>
+
+            <div id="manual-input-section" class="cyber-card p-4 md:p-6 rounded-lg">
+                <h2 class="cyber-header text-xl md:text-2xl font-semibold mb-4 text-center">Input Data Manual</h2>
+                <form id="manual-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label for="network_packet_size" class="block text-sm font-medium mb-1 text-cyan-400">Ukuran Paket Jaringan:</label>
+                        <input type="number" id="network_packet_size" name="network_packet_size" required class="cyber-input w-full p-2 text-sm" placeholder="Contoh: 599">
+                    </div>
+                    <div>
+                        <label for="protocol_type" class="block text-sm font-medium mb-1 text-cyan-400">Tipe Protokol:</label>
+                        <select id="protocol_type" name="protocol_type" required class="cyber-select w-full p-2 text-sm">
+                            <option value="TCP">TCP</option>
+                            <option value="UDP">UDP</option>
+                            <option value="ICMP">ICMP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="login_attempts" class="block text-sm font-medium mb-1 text-cyan-400">Percobaan Login:</label>
+                        <input type="number" id="login_attempts" name="login_attempts" required class="cyber-input w-full p-2 text-sm" placeholder="Contoh: 4">
+                    </div>
+                    <div>
+                        <label for="session_duration" class="block text-sm font-medium mb-1 text-cyan-400">Durasi Sesi (detik):</label>
+                        <input type="number" step="any" id="session_duration" name="session_duration" required class="cyber-input w-full p-2 text-sm" placeholder="Contoh: 492.98">
+                    </div>
+                    <div>
+                        <label for="encryption_used" class="block text-sm font-medium mb-1 text-cyan-400">Enkripsi Digunakan:</label>
+                        <select id="encryption_used" name="encryption_used" required class="cyber-select w-full p-2 text-sm">
+                            <option value="AES">AES</option>
+                            <option value="DES">DES</option>
+                            <option value="Tidak Ada">Tidak Ada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="ip_reputation_score" class="block text-sm font-medium mb-1 text-cyan-400">Skor Reputasi IP (0-1):</label>
+                        <input type="number" step="0.001" min="0" max="1" id="ip_reputation_score" name="ip_reputation_score" required class="cyber-input w-full p-2 text-sm" placeholder="Contoh: 0.606">
+                    </div>
+                    <div>
+                        <label for="failed_logins" class="block text-sm font-medium mb-1 text-cyan-400">Login Gagal:</label>
+                        <input type="number" id="failed_logins" name="failed_logins" required class="cyber-input w-full p-2 text-sm" placeholder="Contoh: 1">
+                    </div>
+                    <div>
+                        <label for="browser_type" class="block text-sm font-medium mb-1 text-cyan-400">Tipe Browser:</label>
+                        <select id="browser_type" name="browser_type" required class="cyber-select w-full p-2 text-sm">
+                            <option value="Chrome">Chrome</option>
+                            <option value="Firefox">Firefox</option>
+                            <option value="Safari">Safari</option>
+                            <option value="Edge">Edge</option>
+                            <option value="Unknown">Unknown/Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="unusual_time_access" class="block text-sm font-medium mb-1 text-cyan-400">Akses Waktu Tidak Biasa:</label>
+                        <select id="unusual_time_access" name="unusual_time_access" required class="cyber-select w-full p-2 text-sm">
+                            <option value="0">Tidak (0)</option>
+                            <option value="1">Ya (1)</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2 lg:col-span-3 flex justify-center mt-4">
+                        <button type="submit" class="cyber-button py-2 px-6 rounded-md font-semibold flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L24 5.25l-.813 2.846a4.5 4.5 0 0 0-3.09 3.09L18.25 12ZM18.25 12l2.846.813a4.5 4.5 0 0 0 3.09 3.09L24 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L18.25 12Z" />
+                              </svg>
+                            <span>Prediksi Risiko</span>
+                            <div id="manual-spinner" class="loading-spinner hidden ml-2"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="csv-input-section" class="hidden cyber-card p-4 md:p-6 rounded-lg">
+                <h2 class="cyber-header text-xl md:text-2xl font-semibold mb-4 text-center">Upload File CSV</h2>
+                <div class="flex flex-col items-center">
+                    <input type="file" id="csv-file" accept=".csv" class="cyber-input block w-full max-w-xs text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 mb-4">
+                    <button id="upload-csv-button" class="cyber-button py-2 px-6 rounded-md font-semibold flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+                          </svg>                          
+                        <span>Proses CSV & Prediksi</span>
+                        <div id="csv-spinner" class="loading-spinner hidden ml-2"></div>
+                    </button>
+                     <p class="text-xs text-gray-400 mt-2 text-center">Pastikan file CSV Anda memiliki kolom berikut dengan nama yang sama persis: <br> <code class="text-cyan-300 text-xs">network_packet_size, protocol_type, login_attempts, session_duration, encryption_used, ip_reputation_score, failed_logins, browser_type, unusual_time_access</code></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-section" class="cyber-card p-4 md:p-6 rounded-lg">
+            <h2 class="cyber-header text-xl md:text-2xl font-semibold mb-4 text-center">Hasil Prediksi</h2>
+            <div id="prediction-output" class="text-center">
+                <p class="text-gray-400">Hasil prediksi akan muncul di sini.</p>
+            </div>
+            <div id="chart-container" class="mt-6 w-full max-w-2xl mx-auto hidden"> 
+                <canvas id="cluster-chart"></canvas>
+            </div>
+            <div id="download-section" class="text-center mt-4 hidden">
+                 <button id="download-csv-button" class="cyber-button py-2 px-4 rounded-md text-sm font-semibold">Unduh CSV dengan Cluster</button>
+            </div>
+        </div>
+         <div id="error-message" class="mt-4 p-3 bg-red-800 border border-red-600 text-red-200 rounded-md text-sm hidden"></div>
+
+    </div>
+
+    <footer class="text-center mt-8 pb-4">
+        <p class="text-xs text-gray-500">&copy; 2025 Analisis Risiko Siber. Dibuat dengan tema Cyber.</p>
+    </footer>
+
+    <script>
+        const manualForm = document.getElementById('manual-form');
+        const csvFileInput = document.getElementById('csv-file');
+        const uploadCsvButton = document.getElementById('upload-csv-button');
+        const predictionOutput = document.getElementById('prediction-output');
+        const chartContainer = document.getElementById('chart-container');
+        const clusterChartCanvas = document.getElementById('cluster-chart');
+        const tabManual = document.getElementById('tab-manual');
+        const tabCsv = document.getElementById('tab-csv');
+        const manualInputSection = document.getElementById('manual-input-section');
+        const csvInputSection = document.getElementById('csv-input-section');
+        const errorMessageDiv = document.getElementById('error-message');
+        const manualSpinner = document.getElementById('manual-spinner');
+        const csvSpinner = document.getElementById('csv-spinner');
+        const downloadSection = document.getElementById('download-section');
+        const downloadCsvButton = document.getElementById('download-csv-button');
+
+        let clusterChart = null;
+        let clusteredCsvData = null; 
+
+        const API_URL = 'http://127.0.0.1:5000/predict'; 
+
+        const expectedColumns = [
+            'network_packet_size', 'protocol_type', 'login_attempts', 
+            'session_duration', 'encryption_used', 'ip_reputation_score', 
+            'failed_logins', 'browser_type', 'unusual_time_access'
+        ];
+        
+        // --- PERBAIKAN UTAMA DI SINI ---
+        // Mengubah pemetaan cluster dari 4 menjadi 3 kategori.
+        const clusterLabelsMap = {
+            0: "Risiko Rendah",
+            1: "Risiko Sedang",
+            2: "Risiko Tinggi"
+        };
+
+        tabManual.addEventListener('click', () => {
+            manualInputSection.classList.remove('hidden');
+            csvInputSection.classList.add('hidden');
+            tabManual.classList.add('active');
+            tabCsv.classList.remove('active');
+            clearResults();
+        });
+
+        tabCsv.addEventListener('click', () => {
+            csvInputSection.classList.remove('hidden');
+            manualInputSection.classList.add('hidden');
+            tabCsv.classList.add('active');
+            tabManual.classList.remove('active');
+            clearResults();
+        });
+
+        function clearResults() {
+            predictionOutput.innerHTML = '<p class="text-gray-400">Hasil prediksi akan muncul di sini.</p>';
+            if (clusterChart) {
+                clusterChart.destroy();
+                clusterChart = null;
+            }
+            chartContainer.classList.add('hidden');
+            errorMessageDiv.classList.add('hidden');
+            errorMessageDiv.textContent = '';
+            downloadSection.classList.add('hidden');
+            clusteredCsvData = null;
+        }
+        
+        function displayError(message) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+        }
+
+        function showSpinner(spinnerElement) {
+            spinnerElement.classList.remove('hidden');
+        }
+
+        function hideSpinner(spinnerElement) {
+            spinnerElement.classList.add('hidden');
+        }
+
+        manualForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            clearResults();
+            showSpinner(manualSpinner);
+
+            const formData = new FormData(manualForm);
+            const data = {};
+            expectedColumns.forEach(col => {
+                const value = formData.get(col);
+                if (['unusual_time_access', 'network_packet_size', 'login_attempts', 'failed_logins'].includes(col)) {
+                    data[col] = parseInt(value, 10);
+                } else if (['session_duration', 'ip_reputation_score'].includes(col)) {
+                    data[col] = parseFloat(value);
+                } else {
+                    data[col] = value;
+                }
+            });
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const displayLabel = result.cluster_label || clusterLabelsMap[result.cluster_id] || `Cluster ${result.cluster_id} (Tidak Dikenal)`;
+
+                predictionOutput.innerHTML = `
+                    <p class="text-lg md:text-xl font-semibold text-cyan-300">Prediksi Cluster: <span class="text-2xl text-white">${result.cluster_id}</span></p>
+                    <p class="text-md text-cyan-400">Label Risiko: <span class="text-lg text-white">${displayLabel}</span></p>
+                    <div class="mt-4 text-left max-w-md mx-auto bg-gray-800 p-3 rounded-md">
+                        <h4 class="text-cyan-300 font-semibold mb-2 text-center">Detail Input:</h4>
+                        ${Object.entries(data).map(([key, value]) => `<p class="text-xs"><span class="font-medium text-cyan-500">${key.replace(/_/g, ' ')}:</span> ${value}</p>`).join('')}
+                    </div>
+                `;
+                chartContainer.classList.add('hidden');
+
+            } catch (error) {
+                console.error('Error:', error);
+                displayError(`Gagal mendapatkan prediksi: ${error.message}`);
+            } finally {
+                hideSpinner(manualSpinner);
+            }
+        });
+
+        uploadCsvButton.addEventListener('click', async () => {
+            if (!csvFileInput.files.length) {
+                displayError('Silakan pilih file CSV terlebih dahulu.');
+                return;
+            }
+            clearResults();
+            showSpinner(csvSpinner);
+
+            const file = csvFileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async (event) => {
+                const csvText = event.target.result;
+                try {
+                    const jsonData = csvToJSON(csvText);
+                    if (!jsonData.length) {
+                         throw new Error("CSV kosong atau format tidak valid.");
+                    }
+                    
+                    const headers = Object.keys(jsonData[0]);
+                    const missingColumns = expectedColumns.filter(col => !headers.includes(col));
+                    if (missingColumns.length > 0) {
+                        throw new Error(`Kolom berikut tidak ditemukan di CSV: ${missingColumns.join(', ')}. Pastikan nama kolom sesuai.`);
+                    }
+                    
+                    const processedJsonData = jsonData.map(row => {
+                        const newRow = { ...row };
+                        for (const col of expectedColumns) {
+                            const value = row[col];
+                            if (value === null || value === undefined || String(value).trim() === "") {
+                                newRow[col] = null;
+                            } else if (['unusual_time_access', 'network_packet_size', 'login_attempts', 'failed_logins'].includes(col)) {
+                                newRow[col] = parseInt(value, 10);
+                            } else if (['session_duration', 'ip_reputation_score'].includes(col)) {
+                                newRow[col] = parseFloat(value);
+                            } else {
+                                newRow[col] = String(value);
+                            }
+                        }
+                        return newRow;
+                    });
+
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(processedJsonData)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    if (result.clusters && Array.isArray(result.clusters)) {
+                        displayCsvResults(result.clusters, processedJsonData);
+                        clusteredCsvData = processedJsonData.map((row, index) => ({
+                            ...row,
+                            cluster: result.clusters[index]
+                        }));
+                        downloadSection.classList.remove('hidden');
+
+                        if (result.row_errors && result.row_errors.length > 0) {
+                            let errorCsvMessage = `Sebanyak ${result.skipped_rows_count} baris dari CSV gagal diproses:\n`;
+                            result.row_errors.slice(0, 5).forEach(err => {
+                                errorCsvMessage += `- Baris ${err.row_index}: ${err.error}\n`;
+                            });
+                            if (result.row_errors.length > 5) errorCsvMessage += "...dan lainnya.";
+                            displayError(errorCsvMessage);
+                        }
+                    } else {
+                         throw new Error("Format respons dari backend tidak sesuai.");
+                    }
+                } catch (error) {
+                    console.error('Error processing CSV:', error);
+                    displayError(`Gagal memproses CSV: ${error.message}`);
+                } finally {
+                    hideSpinner(csvSpinner);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function csvToJSON(csvText) {
+            const lines = csvText.trim().split(/\r\n|\n/);
+            if (lines.length < 2) return []; 
+            const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === "") continue;
+                const obj = {};
+                const currentline = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if (currentline.length !== headers.length) {
+                    console.warn(`Baris ${i+1} dilewati karena jumlah kolom tidak sesuai.`);
+                    continue;
+                }
+                for (let j = 0; j < headers.length; j++) {
+                    obj[headers[j]] = currentline[j].trim().replace(/^"|"$/g, '');
+                }
+                result.push(obj);
+            }
+            return result;
+        }
+
+        function displayCsvResults(clusters, originalData) {
+            const clusterCounts = {};
+            clusters.forEach(cluster => {
+                clusterCounts[cluster] = (clusterCounts[cluster] || 0) + 1;
+            });
+
+            const totalData = clusters.length;
+            predictionOutput.innerHTML = `
+                <p class="text-lg md:text-xl font-semibold text-cyan-300">Hasil Prediksi untuk ${totalData} data dari CSV:</p>
+                <ul class="list-disc list-inside text-left max-w-md mx-auto mt-2">
+                    ${Object.entries(clusterCounts).sort((a, b) => a[0] - b[0]).map(([clusterId, count]) => `
+                        <li class="text-sm text-cyan-400">
+                            Cluster <span class="text-white font-semibold">${clusterId}</span> 
+                            (<span class="text-white">${clusterLabelsMap[clusterId] || 'Label Tidak Dikenal'}</span>): 
+                            <span class="text-white font-semibold">${count} data</span> 
+                            (<span class="text-white">${((count / totalData) * 100).toFixed(1)}%</span>)
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+
+            if (clusterChart) {
+                clusterChart.destroy();
+            }
+
+            const sortedCounts = Object.entries(clusterCounts).sort((a, b) => a[0] - b[0]);
+            const chartLabels = sortedCounts.map(([id]) => `${clusterLabelsMap[id] || 'Cluster ' + id} (ID: ${id})`);
+            const chartData = sortedCounts.map(([, count]) => count);
+            
+            chartContainer.classList.remove('hidden');
+            const ctx = clusterChartCanvas.getContext('2d');
+            clusterChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Jumlah Data per Cluster',
+                        data: chartData,
+                        // --- PERBAIKAN KEDUA DI SINI ---
+                        // Menyesuaikan palet warna untuk 3 cluster.
+                        backgroundColor: [
+                            'rgba(0, 255, 255, 0.7)',   // Cyan untuk Risiko Rendah
+                            'rgba(255, 165, 0, 0.7)',  // Oranye untuk Risiko Sedang
+                            'rgba(255, 0, 0, 0.7)'     // Merah untuk Risiko Tinggi
+                        ],
+                        borderColor: [
+                            'rgba(0, 255, 255, 1)',
+                            'rgba(255, 165, 0, 1)',
+                            'rgba(255, 0, 0, 1)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        barThickness: 'flex',
+                        maxBarThickness: 70
+                    }]
+                },
+                options: { // Opsi lainnya tetap sama
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#e0e0e0', precision: 0 }, grid: { color: 'rgba(0, 170, 255, 0.2)' } },
+                        x: { ticks: { color: '#e0e0e0' }, grid: { display: false } }
+                    },
+                    plugins: { legend: { labels: { color: '#e0e0e0' } } }
+                }
+            });
+            chartContainer.style.height = '400px';
+        }
+        
+        function convertJSONToCSV(jsonData) {
+            if (!jsonData || jsonData.length === 0) return "";
+            const headers = Object.keys(jsonData[0]);
+            const csvRows = [headers.join(',')];
+            for (const row of jsonData) {
+                const values = headers.map(header => {
+                    let cellValue = row[header] ?? "";
+                    if (typeof cellValue === 'string' && (cellValue.includes(',') || cellValue.includes('"'))) {
+                        cellValue = `"${cellValue.replace(/"/g, '""')}"`;
+                    }
+                    return cellValue;
+                });
+                csvRows.push(values.join(','));
+            }
+            return csvRows.join('\n');
+        }
+
+        downloadCsvButton.addEventListener('click', () => {
+            if (clusteredCsvData && clusteredCsvData.length > 0) {
+                const csvContent = convertJSONToCSV(clusteredCsvData);
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "hasil_segmentasi_risiko.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+
+        tabManual.click();
+    </script>
+</body>
+</html>
